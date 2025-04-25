@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import pickle
 import numpy as np
 
@@ -18,28 +18,27 @@ def predict():
     try:
         features = [float(x) for x in request.form.values()]
     except ValueError:
-        # If there is an error in conversion, return the same template with an error message
         return render_template('index.html', prediction_text="Please enter valid numeric values for all features.")
     
-    # Check if the correct number of features is entered (11 features)
     if len(features) != 11:
         return render_template('index.html', prediction_text="Please make sure to enter all 11 features.")
     
-    # Convert features to numpy array for prediction
     final_features = np.array(features).reshape(1, -1)
-
-    # Model prediction (0 or 1)
     raw_pred = rf.predict(final_features)[0]
-
-    # Map to friendly text
-    if raw_pred == 0:
-        message = "The account is Genuine ✅"
-    else:
-        message = "The account is Fake ❌"
-
-    # Send the result back to the page
+    message = "The account is Genuine ✅" if raw_pred == 0 else "The account is Fake ❌"
+    
     return render_template('index.html', prediction_text=message)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+@app.route('/api/predict', methods=['POST'])
+def api_predict():
+    try:
+        data = request.get_json(force=True)
+        features = [float(data[f]) for f in sorted(data.keys())]
+        prediction = rf.predict([features])[0]
+        result = "Genuine ✅" if prediction == 0 else "Fake ❌"
+        return jsonify({'prediction': result})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
+if __name__ == '__main__':
+    app.run(debug=True)
